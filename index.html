@@ -139,6 +139,7 @@ label.inline { display: flex; gap: 8px; align-items: center; font-size: 0.92rem 
         <label class="inline">Tempo-Format
           <select id="bpmFmt"><option value="auto">automatisch nach Firmware</option><option value="int">ganzzahlig (alte Firmware)</option><option value="float">präzise (ab 1.0.14)</option></select>
         </label>
+        <label class="inline"><input type="checkbox" id="initSeq" checked> Beim Verbinden die Startbefehle der Original-App senden</label>
         <label class="inline"><input type="checkbox" id="noResp"> Ohne Bestätigung senden</label>
         <label class="inline"><input type="checkbox" id="wheelInv"> Rad-Richtung umkehren</label>
         <label class="inline"><input type="checkbox" id="echoDev" checked> Rad und Tap am Gerät ändern das Tempo</label>
@@ -192,6 +193,14 @@ function pkSig(a, b) { return [1, 0, 0xcf, (((a - 1) & 15) << 4) | (b & 15)]; }
 function pkColor(i, rgb, playing) { return [1, 0, 0xdf, 8, i + 3, rgb[0], rgb[1], rgb[2], 0, playing ? 0 : 2]; }
 function pkWaveforms(w) { return [1, 0, 7, w[0], w[1], w[2], w[0]]; }
 function pkPreview(effect) { return [1, 0, 0x1f, effect]; }
+// Startfolge der App für den Pulse (GattManager.sendInitPackages), ohne Metronom-Konfiguration und Tap-Farbe
+const INIT = [
+  [[1, 0, 0xdf, 0x0a, 1], "Modus 1 (buildModeChange)"],
+  [[1, 0, 0xdf, 0x8f, 2], "Tap-Rückmeldung visuell (buildTapFeedback)"],
+  [[1, 0, 0xdf, 0x14, 1], "Einstellungen behalten (buildRetainPulseMetronomeSettings)"],
+  [[1, 0, 0xdf, 0x06, 1], "LED folgt (buildLedFollowSetting)"],
+  [[1, 0, 0xdf, 0x17, 1], "Taps statt Tempo melden (buildTapInsteadBpmTempoTap)"],
+];
 
 async function send(bytes, what) {
   if (!st.rx) { log("Nicht verbunden: " + what, "err"); return; }
@@ -303,6 +312,7 @@ async function connect(all) {
       await bc.startNotifications().catch(e => log("Akku-Meldungen nicht möglich: " + e.message));
     } catch (e) { log("Akku nicht lesbar: " + e.message, "err"); }
     $("devName").textContent = dev.name || "ohne Namen";
+    if ($("initSeq").checked) for (const [b, w] of INIT) { await send(b, w); await new Promise(r => setTimeout(r, 60)); }
     setStatus("Verbunden", "on"); uiConnected(true);
   } catch (e) {
     setStatus(st.rx ? "Verbunden" : "Nicht verbunden", st.rx ? "on" : "");
