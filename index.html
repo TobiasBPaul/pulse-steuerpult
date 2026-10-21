@@ -141,6 +141,7 @@ label.inline { display: flex; gap: 8px; align-items: center; font-size: 0.92rem 
         </label>
         <button class="needs-conn" id="unlock" disabled>Bedienung am Pulse freigeben (Tippen und Rad)</button>
         <label class="inline"><input type="checkbox" id="initSeq" checked> Beim Verbinden die Startbefehle der Original-App senden</label>
+        <label class="inline"><input type="checkbox" id="tapRaw"> Einzelne Taps an die Seite melden lassen (Seite rechnet das Tempo)</label>
         <label class="inline"><input type="checkbox" id="noResp"> Ohne Bestätigung senden</label>
         <label class="inline"><input type="checkbox" id="wheelInv"> Rad-Richtung umkehren</label>
         <label class="inline"><input type="checkbox" id="echoDev" checked> Rad und Tap am Gerät ändern das Tempo</label>
@@ -315,7 +316,10 @@ async function connect(all) {
       await bc.startNotifications().catch(e => log("Akku-Meldungen nicht möglich: " + e.message));
     } catch (e) { log("Akku nicht lesbar: " + e.message, "err"); }
     $("devName").textContent = dev.name || "ohne Namen";
-    if ($("initSeq").checked) for (const [b, w] of INIT) { await send(b, w); await new Promise(r => setTimeout(r, 60)); }
+    if ($("initSeq").checked) for (const [b, w] of INIT) {
+      if (b[3] === 0x17 && !$("tapRaw").checked) continue;
+      await send(b, w); await new Promise(r => setTimeout(r, 60));
+    }
     setStatus("Verbunden", "on"); uiConnected(true);
   } catch (e) {
     setStatus(st.rx ? "Verbunden" : "Nicht verbunden", st.rx ? "on" : "");
