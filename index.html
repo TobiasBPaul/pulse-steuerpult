@@ -233,7 +233,7 @@ function onPulse(ev) {
   else if (id === 1) { txt = "Play/Pause am Gerät: " + (b3 === 1 ? "spielt" : "gestoppt"); setPlaying(b3 === 1); }
   else if (id === 2) {
     const bpm = decodeBpm(d);
-    txt = "Tempo vom Gerät: " + (bpm === null ? "nicht lesbar" : +bpm.toFixed(3)) + (d.length > 8 ? ", Byte 8 = " + d[8] : "");
+    txt = "Tempo vom Gerät: " + (bpm === null ? "nicht lesbar" : +bpm.toFixed(3)) + (d.length > 8 ? ", Quelle: " + ({1: "Rad", 2: "Tap-Tempo", 5: "Rad"}[d[8]] || "Byte 8 = " + d[8]) : "");
     if (bpm !== null && bpm >= 1 && bpm <= 400) setBpm(Math.round(bpm), false);
   }
   else if (id === 12) { txt = "Tap am Gerät"; onTap(); }
