@@ -139,6 +139,7 @@ label.inline { display: flex; gap: 8px; align-items: center; font-size: 0.92rem 
         <label class="inline">Tempo-Format
           <select id="bpmFmt"><option value="auto">automatisch nach Firmware</option><option value="int">ganzzahlig (alte Firmware)</option><option value="float">präzise (ab 1.0.14)</option></select>
         </label>
+        <button class="needs-conn" id="unlock" disabled>Bedienung am Pulse freigeben (Tippen und Rad)</button>
         <label class="inline"><input type="checkbox" id="initSeq" checked> Beim Verbinden die Startbefehle der Original-App senden</label>
         <label class="inline"><input type="checkbox" id="noResp"> Ohne Bestätigung senden</label>
         <label class="inline"><input type="checkbox" id="wheelInv"> Rad-Richtung umkehren</label>
@@ -373,6 +374,8 @@ defaults.forEach(([r, g, bl, eff], i) => {
     if (!st.playing) send(pkPreview(w[i]), "Probe-Vibration " + w[i]);
   });
 });
+// buildUIAccess(true, true): Touchfläche 0 = frei, Rad 0 = frei
+$("unlock").addEventListener("click", () => send([1, 0, 0xdf, 0x09, 0], "Bedienung freigeben (buildUIAccess)"));
 $("connect").addEventListener("click", () => connect(false));
 $("connectAll").addEventListener("click", () => connect(true));
 $("disconnect").addEventListener("click", () => { if (st.dev && st.dev.gatt.connected) st.dev.gatt.disconnect(); });
