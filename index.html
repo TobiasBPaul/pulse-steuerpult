@@ -229,7 +229,7 @@ function onPulse(ev) {
     txt = "Rad gedreht, Byte 1 = " + d[1] + " → " + (up ? "schneller" : "langsamer");
     if ($("echoDev").checked) setBpm(st.bpm + (up ? 1 : -1), true);
   }
-  else if (id === 13) { txt = "Ladezustand: " + (b3 === 1 ? "lädt" : "lädt nicht"); $("charging").textContent = b3 === 1 ? "lädt" : "nein"; }
+  else if (id === 13) { txt = "Ladezustand: " + (b3 === 1 ? "lädt" : "lädt nicht"); $("charging").textContent = b3 === 1 ? "lädt" : "nein"; st.charging = b3 === 1; }
   else if (id === 4) txt = b3 === 0 ? "Gerät schaltet ab" : "ID 4, Byte 3 = " + b3;
   else if (id === 14) txt = "Gerät trennt";
   else if (id === 18) txt = "Song-Wechsel: " + b3;
@@ -250,6 +250,22 @@ function onTap() {
   }
 }
 function battText(raw) { return raw >= 0 && raw < 100 ? "ca. " + BATTERY_DISPLAY[raw] + " % (Rohwert " + raw + ")" : "Rohwert " + raw; }
+// wie PulseBatteryReading: beim Laden Rohwert, sonst Mittel der letzten 15 Rohwerte über BATTERY_DISPLAY;
+// nach mehr als 20 Messungen darf die Anzeige nicht mehr steigen (die LEDs drücken den Rohwert kurz nach unten)
+const batt = { raws: [], count: 0, shown: null };
+function battUpdate(raw) {
+  let val;
+  if (st.charging) { val = raw; batt.raws = []; batt.count = 0; }
+  else {
+    batt.raws.push(raw); if (batt.raws.length > 15) batt.raws.shift(); batt.count++;
+    const avg = Math.round(batt.raws.reduce((a, b) => a + b, 0) / batt.raws.length);
+    val = avg === 100 ? 100 : avg >= 0 && avg < 100 ? BATTERY_DISPLAY[avg] : null;
+    if (val === null) return;
+    if (batt.count > 20 && batt.shown !== null && val > batt.shown) val = batt.shown;
+  }
+  batt.shown = val;
+  $("batt").textContent = val + " %" + (st.charging ? " (lädt)" : "");
+}
 
 // --- Verbindung ---
 async function connect(all) {
@@ -282,8 +298,8 @@ async function connect(all) {
     log("Firmware: " + (st.fw || "unbekannt") + ", Tempo-Format: " + (floatBpm() ? "präzise" : "ganzzahlig"));
     try {
       const bc = await (await srv.getPrimaryService(BATT_SVC)).getCharacteristic(BATT_LVL);
-      const v = await bc.readValue(); $("batt").textContent = battText(v.getUint8(0)); log("Akku: " + battText(v.getUint8(0)));
-      bc.addEventListener("characteristicvaluechanged", e => { const r = e.target.value.getUint8(0); $("batt").textContent = battText(r); log("← Akku: " + battText(r), "in"); });
+      const v = await bc.readValue(); battUpdate(v.getUint8(0)); log("Akku: " + battText(v.getUint8(0)));
+      bc.addEventListener("characteristicvaluechanged", e => { const r = e.target.value.getUint8(0); battUpdate(r); log("← Akku: " + battText(r), "in"); });
       await bc.startNotifications().catch(e => log("Akku-Meldungen nicht möglich: " + e.message));
     } catch (e) { log("Akku nicht lesbar: " + e.message, "err"); }
     $("devName").textContent = dev.name || "ohne Namen";
