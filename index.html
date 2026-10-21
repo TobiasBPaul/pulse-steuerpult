@@ -201,6 +201,8 @@ const INIT = [
   [[1, 0, 0xdf, 0x14, 1], "Einstellungen behalten (buildRetainPulseMetronomeSettings)"],
   [[1, 0, 0xdf, 0x06, 1], "LED folgt (buildLedFollowSetting)"],
   [[1, 0, 0xdf, 0x17, 1], "Taps statt Tempo melden (buildTapInsteadBpmTempoTap)"],
+  // finishDeviceSetupIfNeeded → sendStoredInteractionLock: Touch 15 (alles frei), Rad 1 (frei)
+  [[1, 0, 0xdf, 0x09, (15 << 2) | 1], "Bedienung am Gerät freigeben (buildUIAccess)"],
 ];
 
 async function send(bytes, what) {
@@ -374,8 +376,8 @@ defaults.forEach(([r, g, bl, eff], i) => {
     if (!st.playing) send(pkPreview(w[i]), "Probe-Vibration " + w[i]);
   });
 });
-// buildUIAccess(true, true): Touchfläche 0 = frei, Rad 0 = frei
-$("unlock").addEventListener("click", () => send([1, 0, 0xdf, 0x09, 0], "Bedienung freigeben (buildUIAccess)"));
+// InteractionLockAccess: Touch 15 = alles frei (Bit 0 Tap-Tempo, Bit 1 Start/Pause), Rad 1 = frei; 0 sperrt
+$("unlock").addEventListener("click", () => send([1, 0, 0xdf, 0x09, (15 << 2) | 1], "Bedienung freigeben (buildUIAccess)"));
 $("connect").addEventListener("click", () => connect(false));
 $("connectAll").addEventListener("click", () => connect(true));
 $("disconnect").addEventListener("click", () => { if (st.dev && st.dev.gatt.connected) st.dev.gatt.disconnect(); });
