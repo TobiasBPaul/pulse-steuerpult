@@ -55,7 +55,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); min-height: 32px }
 .accent:first-of-type { border-top: 0; padding-top: 0 }
 .accent b { grid-column: 1 / -1; font-weight: 700 }
 .accent input[type=color] { width: 52px; height: 44px; border: 1px solid var(--line); border-radius: 8px; background: none; padding: 2px }
-.accent .row { grid-column: 1 / -1 }
+.accent select { min-width: 0; width: 100% }
+.accent button { grid-column: 1 / -1 }
 .note { font-size: 0.85rem; color: var(--muted); margin: 8px 0 0 }
 .warnbox { border-color: var(--warn); }
 .warnbox p { margin: 0 0 6px }
@@ -118,8 +119,7 @@ label.inline { display: flex; gap: 8px; align-items: center; font-size: 0.92rem 
   <section class="panel">
     <h2>Akzente: Farbe und Vibration</h2>
     <div id="accents"></div>
-    <div class="row"><button id="sendVib" disabled>Vibrationen für alle drei senden</button></div>
-    <p class="note">Akzent 1 ist der erste Schlag im Takt. Die Farbe geht als Rot/Grün/Blau an den Pulse, der Weiß-Anteil ist 0.</p>
+    <p class="note">Akzent 1 ist der erste Schlag im Takt. Eine neue Farbe oder Vibration geht sofort an den Pulse. Bei gestopptem Metronom spielt der Pulse die gewählte Vibration einmal vor.</p>
   </section>
 
   <section class="panel">
@@ -295,7 +295,7 @@ async function connect(all) {
 }
 function uiConnected(on) {
   $("info").hidden = !on && !st.dev; $("disconnect").hidden = !on; $("connect").hidden = on;
-  for (const id of ["play", "sendSig", "sendVib"]) $(id).disabled = !on;
+  for (const id of ["play", "sendSig"]) $(id).disabled = !on;
   document.querySelectorAll(".needs-conn").forEach(b => b.disabled = !on);
 }
 
@@ -330,19 +330,23 @@ defaults.forEach(([r, g, bl, eff], i) => {
   const col = "#" + [r, g, bl].map(x => x.toString(16).padStart(2, "0")).join("");
   box.innerHTML = `<b>Akzent ${i + 1}</b>
     <input type="color" id="col${i}" value="${col}" aria-label="Farbe Akzent ${i + 1}">
-    <button class="needs-conn" id="sendCol${i}" disabled>Farbe senden</button>
-    <div class="row"><select id="vib${i}" aria-label="Vibration Akzent ${i + 1}"></select>
-    <button class="needs-conn" id="prev${i}" disabled>Probe</button></div>`;
+    <select id="vib${i}" aria-label="Vibration Akzent ${i + 1}"></select>
+    <button class="needs-conn" id="prev${i}" disabled>Vibration nochmal vorspielen</button>`;
   $("accents").appendChild(box);
   const sel = box.querySelector("select");
   EFFECTS.forEach((n, k) => sel.add(new Option((k + 1) + " · " + effectLabel(n), k + 1, false, k + 1 === eff)));
-  box.querySelector("#sendCol" + i).addEventListener("click", () => {
+  $("col" + i).addEventListener("change", () => {
     const v = $("col" + i).value, rgb = [1, 3, 5].map(p => parseInt(v.slice(p, p + 2), 16));
     send(pkColor(i, rgb, st.playing), "Farbe Akzent " + (i + 1) + " " + v);
   });
   box.querySelector("#prev" + i).addEventListener("click", () => send(pkPreview(+sel.value), "Probe-Vibration " + sel.value));
+  // wie GattManager.sendHapticEffectsAndPreview: alle drei setzen, bei gestopptem Metronom vorspielen
+  sel.addEventListener("change", async () => {
+    const w = [0, 1, 2].map(k => +$("vib" + k).value);
+    await send(pkWaveforms(w), "Vibrationen " + w.join("/"));
+    if (!st.playing) send(pkPreview(w[i]), "Probe-Vibration " + w[i]);
+  });
 });
-$("sendVib").addEventListener("click", () => { const w = [0, 1, 2].map(i => +$("vib" + i).value); send(pkWaveforms(w), "Vibrationen " + w.join("/")); });
 $("connect").addEventListener("click", () => connect(false));
 $("connectAll").addEventListener("click", () => connect(true));
 $("disconnect").addEventListener("click", () => { if (st.dev && st.dev.gatt.connected) st.dev.gatt.disconnect(); });
